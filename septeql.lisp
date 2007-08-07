@@ -70,6 +70,21 @@ interpolated into a SQL statement as a string literal"
 (define-scalar-translator as (column-expr alias)
   (format nil "~A AS ~A" (translate-scalar column-expr) (lisp-to-sql-name alias)))
 
+(define-scalar-translator case (&rest clauses)
+  (with-output-to-string (o)
+    (princ "(CASE " o)
+    (loop for (expr result) in clauses
+	  if (and (symbolp expr) (member expr '(t else) :test #'string-equal))
+	  do (format o "ELSE ~A " (translate-scalar result)) 
+	  else do (format o "WHEN ~A THEN ~A "
+			  (translate-scalar expr)
+			  (translate-scalar result)))
+    (princ "END) " o)))
+
+;; SQL's CASE is more like CL's COND, so define the latter as an alias
+(define-scalar-translator cond (&rest clauses)
+  (translate-scalar `(case ,@clauses)))
+
 ;;; we *could* use the zero-length symbol for string concatenation,
 ;;; relying on the printer to render it as ``||'', but that's arguably
 ;;; kinda tacky.  So, ++ for sticking strings together
@@ -166,8 +181,6 @@ interpolated into a SQL statement as a string literal"
 		 `(rename ,(sv sql 'from) ,name))
 	   sql))))
 
-    
-
 (defun min~ (&rest args)
   (let ((real-args (remove-if #'not args)))
     (and (car real-args) (apply #'min real-args))))
@@ -208,7 +221,6 @@ interpolated into a SQL statement as a string literal"
 		 (translate-scalar (fourth from))))
 	(t (error "buggered if I know"))))
 
-
 (defun as-string (sql)
   (with-output-to-string (s)
     (format s "SELECT ~{~A~^,~} "
@@ -231,4 +243,3 @@ interpolated into a SQL statement as a string literal"
 
 (defun to-sql (relation)
   (as-string (parse-relation relation)))
-
