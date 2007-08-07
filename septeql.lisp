@@ -42,7 +42,9 @@ interpolated into a SQL statement as a string literal"
 (defun translate-scalar (expr)
   (typecase expr
     (string (lisp-to-sql-string expr))
-    (number (format nil "~S" expr))
+    (complex (error "Don't know how to translate complex numbers to SQL"))
+    (integer (format nil "~S" expr))
+    (real (format nil "~S" (coerce expr 'single-float)))
     (null "FALSE")
     (boolean "TRUE")
     (symbol (lisp-to-sql-name expr))
