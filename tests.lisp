@@ -108,3 +108,31 @@
 		   order-line))
 ;; received
 "SELECT SUM(QUANTITY) AS QUANTITY,SUM((QUANTITY * COST)) AS VALUE,EVENT_ID,EVENT_DESCRIPTION FROM ORDER_LINE GROUP BY EVENT_ID,EVENT_DESCRIPTION "
+;; sent
+(7ql:to-sql '(project ((case ((= 1 1) true) ((= 1 5) hello) (t null))) foo))
+;; received
+"SELECT (CASE WHEN (1 = 1) THEN TRUE WHEN (1 = 5) THEN HELLO ELSE NULL END)  FROM FOO "
+;; sent
+(7ql:to-sql '(project ((as (case ((= 1 1) true) ((= 1 5) hello) (t null)) title)) foo))
+;; received
+"SELECT (CASE WHEN (1 = 1) THEN TRUE WHEN (1 = 5) THEN HELLO ELSE NULL END)  AS TITLE FROM FOO "
+;; sent
+(7ql:to-sql `(project (3d1) dual))
+;; received
+"SELECT 30.0 FROM DUAL "
+;; sent
+(7ql:to-sql `(project (3/4) dual))
+;; received
+"SELECT 0.75 FROM DUAL "
+;; sent
+(7ql:to-sql `(project (3) dual))
+;; received
+"SELECT 3 FROM DUAL "
+;; sent
+(type-of (second (multiple-value-list (ignore-errors (to-sql `(project (#c(1 2)) dual))))))
+;; received
+SIMPLE-ERROR
+;; sent
+(to-sql '(project ((cond ((= 1 1) true) ((= 1 5) hello) (t null))) foo))
+;; received
+"SELECT (CASE WHEN (1 = 1) THEN TRUE WHEN (1 = 5) THEN HELLO ELSE NULL END)  FROM FOO "
