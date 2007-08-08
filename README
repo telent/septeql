@@ -1,0 +1,179 @@
+
+SEPTEQL
+
+  +--- WARNING --------------------------------------------------------+
+  | This is *work in progress*: syntax may (quite likely, will) change |
+  | without warning.                                                   |
+  +--------------------------------------------------------------------+
+
+SEPTEQL is a Lispy composable query language for talking to RDBMSes.
+It translates to SQL, so (at least in principle) is database- and
+driver-independent and will talk to anything.  
+
+* Motivating Examples
+
+(to-sql '(join rel1 rel2 predicate))
+=> "SELECT * FROM (REL1 JOIN REL2 ON PREDICATE) "
+
+(to-sql '(project (att1 (as att2 name) att3) relation))
+=> "SELECT ATT1,ATT2 AS NAME,ATT3 FROM RELATION "
+
+(to-sql '(order (limit relation 5 15) attribute :desc) )
+   ; why anyone would want to limit *first* and then order the result I 
+   ; don't know, but look, it handles that too
+=> "SELECT * FROM (SELECT * FROM RELATION OFFSET 5 LIMIT 10 ) RELATION  ORDER BY ATTRIBUTE DESC "
+
+(to-sql '(group ((as (sum quantity) quantity) 
+                 (as (sum (* quantity cost)) value))
+		(event-id event-description)
+		order-line))
+=> "SELECT SUM(QUANTITY) AS QUANTITY,SUM((QUANTITY * COST)) AS VALUE,EVENT_ID,EVENT_DESCRIPTION FROM ORDER_LINE GROUP BY EVENT_ID,EVENT_DESCRIPTION "
+
+Backquote and comma are your friends [1]
+
+* Syntax overview
+
+Look at tests.lisp for examples.  This is all subject to change, so
+UTSL is not bad advice.
+
+** Relations
+
+At the risk of doing considerable violence to accepted terminology: a
+relation is an "ordered bag" of tuples (aka rows) [2].  A tuple is a bag
+of attributes (informally, columns), each attribute having a name and
+a value.
+
+(SELECT relation predicate)    
+-  get rows that match
+(PROJECT attributes relation)  
+-  get columns that match
+(JOIN r1 r2 expr)              
+-  inner join of R1 and R2 where EXPR 
+(GROUP aggregates group-by rel) 
+-  for each distinct value of the attributes GROUP-BY in REL, apply AGGREGATES
+   across all rows of REL 
+(ORDER relation attribute &optional direction)
+- Sort RELATION according to ATTRIBUTE.  DIRECTION is :asc or :desc
+(RENAME relation new-name)
+- what it says.  Also has the effect of "flattening" a relation: for example
+  (project (a.foo (as b.foo bar)) (a join b on p)) 
+  is OK, but not
+  (project (a.foo (as b.foo bar)) (rename (a join b on b) c))
+  because the "a" and "b" prefixes get squashed. 
+(LIMIT relation start end)
+- return rows START <= n < END.  Note exclusive upper bound, as in CL
+  sequence functions 
+
+Changes likely in the following areas:
+- ORDER to gain some way of sorting on multiple columns
+- some kind of syntax for left and right joins (more probably
+  new operators than extending JOIN with keywords)
+
+
+** Scalars
+
+Values that are not relations we call "scalars".  Scalar expressions
+are e.g. the predicate in a SELECT, the expr in a JOIN, and so on.
+
+Scalars include attribute names, literals (string, numeric, booleans) and
+functions that work on them.  We use a Lisp-style prefix
+representation: thus
+
+1
+"fish"
+2d0
+t
+(+ 1 2)
+(>= att1 17)
+(like att2 "hello%")
+(++ "hello " "world") ; string catenation using the SQL || operator
+(sum quantity)
+(case ((p1 res1) (p2 res2) ... (else res-default)))
+
+CAUTION NEEDED: How we deal with NIL is largely undecided, as SQL has
+distinct NULL and FALSE, but CL doesn't
+
+Operators in the list *INFIX-SYNTAX* are transformed to infix syntax.
+Some stuff (CASE, ++, AS) is handled specially.  Anything we don't
+recognise is assumed to be a call to a SQL function.
+
+Note that CASE in SQL is more like CL's COND (where p1, p2 ... are
+arbitrary predicates) than its CASE (where they are literals possible
+values of a key form).  To that end, we have defined COND as an alias
+for CASE, mostly for the convenience of editors with magic indentation
+that will otherwise get it wrong.
+
+We don't have provision for many of the SQL string-processing
+functions with stupid positional syntax; expect that to be added if
+and when I need to use them.  Or add them yourself and send patches.
+
+
+* Installation
+
+Works best with ASDF, but that's probably not a particularly onerous
+requirement these days.  If you don't have it, arrange for
+defpackage.lisp and septeql.lisp to be compiled and loaded in that
+order.
+
+
+* Compatibility
+
+Septeql is developed in SBCL and Postgresql.  The author would like to
+hear about importabilities that break it when used with other ANSI CL
+implementations or SQL databases, but is not particularly interested
+in filling it full of ugly workarounds if the problem is with the
+Lisp/RDBMS rather than with Septeql.  Done that too often already,
+thanks.
+
+
+* Object-Relational Mapping: a short rant
+
+  "And that means the Great Orm will come in the night and wind out my
+  entrails on a stick!"
+  "Does it?"
+  "And suck out my eyes, my mother said"
+  "Gosh!" said Teppic, fascinated.  "Really?"  He was quite glad his
+  bed was opposite Arthur's and would offer an unrivalled view.
+
+                                            - Terry Pratchett, Pyramids
+
+
+Everyone who was anywhere near the dotcom boom has written an ORM at
+some time in their life.  Some of us who Just Don't Learn have written
+several.  
+
+I'm going to ignore the fundamental theoretical problems with
+declaring tuples and instances to be equivalent.  This is because (a)
+I don't pretend to understand them, I only know that C J Date is
+smarter than I am [3], and (b) nobody who works with databases in the
+so-called Real World cares one jot or tittle for the theory anyway.
+So let's just say
+
+* having to keep the object schema in sync with the database schema is
+burdensome.  You might have tools to autogenerate an empty database
+from your object definitions, but being able to automatically migrate
+all your existing data when you make schema changes is a lot rarer.
+
+* the OO chase-the-pointers style of data interrogation makes for a
+million DB roundtrips, which is grossly inefficient.  Better to do the
+joins in the database and get everything you need in one step, but how
+do you squish that back into objects?
+
+* object identity usually goes out the window when you can retrieve
+the same row by more than one route.  And semi-reliable object
+identity is worse than none.
+
+* there isn't a 1:1 relationship between entities in the problem
+domain and tables in the database.  If you have a Colour class that
+exists solely to map onto the COLOUR table (because you can't put all
+its contents in a dropdown list otherwise), I'd call that a code
+smell.  You'll never use it outside of the CRUD screens.
+
+
+[1] Well, they're my friends anyway.  They talk to me when I sleep,
+you know.  They tell me what to do.
+
+[2] If we were talking to a proper relational system, there would be no
+ordering and no duplicate rows.  In the so-called Real World, however ... 
+
+[3] I only hope I can stay out of the dbdebunk.com Hall of Shame, is all.
