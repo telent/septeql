@@ -45,7 +45,7 @@ interpolated into a SQL statement as a string literal"
     (complex (error "Don't know how to translate complex numbers to SQL"))
     (integer (format nil "~S" expr))
     (real (format nil "~S" (coerce expr 'single-float)))
-    (null "FALSE")
+    (null "NULL")
     (boolean "TRUE")
     (symbol (lisp-to-sql-name expr))
     (cons 

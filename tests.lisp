@@ -26,10 +26,6 @@
 ;; received
 "SELECT * FROM RELATION WHERE (VALUE = 1) "
 ;; sent
-(to-sql '(select relation (and (= value 1) (< another 10) (or t nil))))
-;; received
-"SELECT * FROM RELATION WHERE (((VALUE = 1) AND (ANOTHER < 10)) AND (TRUE OR FALSE)) "
-;; sent
 (to-sql '(order relation attribute))
 ;; received
 "SELECT * FROM RELATION ORDER BY ATTRIBUTE ASC "
@@ -136,3 +132,7 @@ SIMPLE-ERROR
 (to-sql '(project ((cond ((= 1 1) true) ((= 1 5) hello) (t null))) foo))
 ;; received
 "SELECT (CASE WHEN (1 = 1) THEN TRUE WHEN (1 = 5) THEN HELLO ELSE NULL END)  FROM FOO "
+;; sent
+(to-sql '(select relation (and (= value 1) (< another 10) (or true false))))
+;; received
+"SELECT * FROM RELATION WHERE (((VALUE = 1) AND (ANOTHER < 10)) AND (TRUE OR FALSE)) "
