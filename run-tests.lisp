@@ -5,6 +5,7 @@
     (let ((failed nil))
       (loop
        (let* ((eof (gensym))
+	      (*package* #.*package*)
 	      (send (read stream nil eof))
 	      (expect (read stream nil eof)))
 	 (when (eql send eof) (return failed))
