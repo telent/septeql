@@ -70,6 +70,10 @@ interpolated into a SQL statement as a string literal"
 (define-scalar-translator as (column-expr alias)
   (format nil "~A AS ~A" (translate-scalar column-expr) (lisp-to-sql-name alias)))
 
+(define-scalar-translator cast (column-expr type)
+  (format nil "cast(~A as ~A)" (translate-scalar column-expr) 
+	  (lisp-to-sql-name type)))
+
 (define-scalar-translator case (&rest clauses)
   (with-output-to-string (o)
     (princ "(CASE " o)
@@ -199,7 +203,7 @@ interpolated into a SQL statement as a string literal"
 ;;; subselect where the user hasn't provided any
 (defun sql-name (sql)
   (cond ((typep sql 'sql) (sql-name (sv sql 'from)))
-	((symbolp sql) sql)
+	((symbolp sql) (lisp-to-sql-name sql))
 	((eql (car sql) 'join) (gensym))
 	((eql (car sql) 'rename) (third sql))
 	(t (error "no name"))))
