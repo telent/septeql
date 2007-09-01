@@ -156,6 +156,12 @@ interpolated into a SQL statement as a string literal"
       (setf r (make-instance 'sql :from r)))
     (make-instance 'sql :from `(join ,(sv l 'from) ,(sv r 'from) ,expr))))
 
+(define-translator left-join (rel1 rel2 expr)
+  (let* ((j (parse-relation `(join ,rel1 ,rel2 ,expr)))
+	 (from (sv j 'from)))
+    (setf (sv j 'from) `(left-join ,@(cdr from)))
+    j))
+
 (define-translator group (aggregates dividers relation)
   (let ((l (parse-relation relation)))
     (when (any-slot-bound-p l '(start end group-by attributes order-by))
@@ -220,6 +226,11 @@ interpolated into a SQL statement as a string literal"
 	       (format nil "~A ~A " (from-clause-as-string rel) name))))
 	((eql (car from) 'join)	 
 	 (format nil "(~A JOIN ~A ON ~A)"
+		 (from-clause-as-string  (second from))
+		 (from-clause-as-string  (third from))
+		 (translate-scalar (fourth from))))
+	((eql (car from) 'left-join)	 
+	 (format nil "(~A LEFT JOIN ~A ON ~A)"
 		 (from-clause-as-string  (second from))
 		 (from-clause-as-string  (third from))
 		 (translate-scalar (fourth from))))

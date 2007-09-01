@@ -136,3 +136,7 @@ SIMPLE-ERROR
 (to-sql '(select relation (and (= value 1) (< another 10) (or true false))))
 ;; received
 "SELECT * FROM RELATION WHERE (((VALUE = 1) AND (ANOTHER < 10)) AND (TRUE OR FALSE)) "
+;; sent
+(7ql:to-sql '(left-join a b (= a.id b.id)))
+;; received
+"SELECT * FROM (A LEFT JOIN B ON (A.ID = B.ID)) "
