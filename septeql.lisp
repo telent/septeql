@@ -24,7 +24,7 @@ interpolated into a SQL statement as a string literal"
 
 ;;;; parsing expressions that return scalar values.  
 
-(defparameter *infix-syntax* '(+ - / * = > < >= <= like ilike is and
+(defparameter *infix-syntax* '(+ - / * = > < >= <= <> like ilike is and
 				 or |::| ~ ~* ! !*)
   "Functions to be transformed to infix syntax.  Must be column-expr * column-expr => column-expr")
 
@@ -67,12 +67,19 @@ interpolated into a SQL statement as a string literal"
 (defmacro define-scalar-translator (name args &body forms)
   `(make-scalar-translator (quote ,name) (lambda ,args ,@forms)))
 
+(define-scalar-translator position (needle haystack)
+  (format nil "position(~A in ~A)" 
+	  (translate-scalar needle)
+	  (translate-scalar haystack)))
+	  
+
 (define-scalar-translator as (column-expr alias)
   (format nil "~A AS ~A" (translate-scalar column-expr) (lisp-to-sql-name alias)))
 
 (define-scalar-translator cast (column-expr type)
   (format nil "cast(~A as ~A)" (translate-scalar column-expr) 
 	  (lisp-to-sql-name type)))
+
 
 (define-scalar-translator case (&rest clauses)
   (with-output-to-string (o)
@@ -95,6 +102,10 @@ interpolated into a SQL statement as a string literal"
 
 (define-scalar-translator ++ (&rest columns)
   (infixize "||" (mapcar #'translate-scalar columns)))
+
+(define-scalar-translator in (column-expr choices)
+  (format nil "~A IN (~{~A~^,~})" (translate-scalar column-expr) 
+	  (mapcar #'translate-scalar choices)))
 
 
 ;;;; and relations
