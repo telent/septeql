@@ -114,7 +114,8 @@ interpolated into a SQL statement as a string literal"
 ;;; this models a sql SELECT statement
 ;;; XXX we don't support HAVING, mostly becaue I don't understand it
 (defclass sql ()
-  ((attributes :initarg :attributes)
+  ((distinct :initarg :distinct)
+   (attributes :initarg :attributes)
    (from  :initarg :from )
    (where :initarg :where)
    (group-by :initarg :group-by)
@@ -172,6 +173,11 @@ interpolated into a SQL statement as a string literal"
 	 (from (sv j 'from)))
     (setf (sv j 'from) `(left-join ,@(cdr from)))
     j))
+
+(define-translator distinct (rel)
+  (let ((r (parse-relation rel)))
+    (setf (sv r 'distinct) t)
+    r))
 
 (define-translator group (aggregates dividers relation)
   (let ((l (parse-relation relation)))
@@ -249,7 +255,8 @@ interpolated into a SQL statement as a string literal"
 
 (defun as-string (sql)
   (with-output-to-string (s)
-    (format s "SELECT ~{~A~^,~} "
+    (format s "SELECT ~A ~{~A~^,~} "
+	    (if (sv sql 'distinct nil) "DISTINCT" "")
 	    (or (mapcar #'translate-scalar (sv sql 'attributes nil)) '(*)))
     (format s "FROM ~A " (from-clause-as-string (sv sql 'from)))
     (let* ((nilg (gensym))
