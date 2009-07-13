@@ -47,6 +47,7 @@ interpolated into a SQL statement as a string literal"
     (real (format nil "~S" (coerce expr 'single-float)))
     (null "NULL")
     (boolean "TRUE")
+    (keyword (lisp-to-sql-string (string expr)))
     (symbol (lisp-to-sql-name expr))
     (cons 
      (destructuring-bind (op &rest args) expr
